@@ -1,0 +1,55 @@
+!pip install pytesseract pillow pandas > /dev/null 2>&1
+
+import pytesseract
+from PIL import Image
+from google.colab import files
+import pandas as pd
+import re
+
+def extract_data_from_image(image_path):
+    image = Image.open(image_path)
+    text = pytesseract.image_to_string(image)
+    print("\nExtracted text:")
+    print(text.strip())
+    return text
+
+def parse_text_to_dataframe(text):
+    data_rows = []
+    for line in text.strip().split('\n'):
+        values = re.split(r'[,\s]+', line.strip())
+        if len(values) >= 3:
+            product = values[0]
+            try:
+                sales = float(values[1])
+                profit = float(values[2])
+                data_rows.append([product, sales, profit])
+            except ValueError:
+                continue
+    return pd.DataFrame(data_rows, columns=["Product", "Sales", "Profit"]) if data_rows else None
+
+def calculate_metrics(df):
+    total_sales = df["Sales"].sum()
+    total_profit = df["Profit"].sum()
+    avg_margin = (total_profit / total_sales) * 100 if total_sales else 0
+    return total_sales, total_profit, avg_margin
+
+
+print("Please upload an image containing sales and profit data:")
+uploaded_files = files.upload()
+
+for filename in uploaded_files:
+    print(f"\nProcessing image: {filename}")
+    extracted_text = extract_data_from_image(filename)
+    df = parse_text_to_dataframe(extracted_text)
+
+    if df is not None:
+        print("\nParsed Data:")
+        print(df)
+
+        total_sales, total_profit, avg_margin = calculate_metrics(df)
+        print(f"\nTotal Sales: {total_sales}")
+        print(f"Total Profit: {total_profit}")
+        print(f"Average Profit Margin: {avg_margin:.2f}%")
+    else:
+        print("Couldn't parse data properly:")
+        print("ProductA, 1000, 200")
